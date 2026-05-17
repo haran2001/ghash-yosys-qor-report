@@ -42,7 +42,7 @@ The point of using yosys is not that yosys is the production flow. Vivado on Lin
 
 ## Goal and methodology
 
-**What we tested.** Whether a meta-harness above Yosys, with a fixed testbench gate and a fixed functional contract, can rank legal same-RTL-contract variants well enough to pre-filter the Vivado candidate queue for a LUT- and congestion-constrained customer design.
+**What we tested.** Whether an autoresearch experiment harness above Yosys, with a fixed testbench gate and a fixed functional contract, can rank legal same-RTL-contract variants well enough to pre-filter the Vivado candidate queue for a LUT- and congestion-constrained customer design.
 
 **What was held fixed.** GHASH GF(2^128) functional contract (NIST byte ordering, reduction polynomial `8'hE1` on byte 0, `logic [15:0][7:0]` IO), part `xcku3p-ffvb676-2-e`, testbench (5 directed + 1 000 random vectors), Python golden, customer pain ranking (LUT > congestion > latency > Fmax).
 
@@ -135,11 +135,11 @@ The Newton-relevant implementation choice here is the pipeline-granularity axis:
 
 The big −31.6% / −46.8% / −48.5% numbers are partly **ABC cone-scaling artifacts**, not durable Vivado wins. At ITER=128 the entire 128-iteration chain is one combinational cone; yosys's ABC heuristic stalls on that scope and leaves redundant LUTs. Breaking the cone into smaller pieces lets ABC finish its optimisation passes. Vivado's `opt_design` and `phys_opt_design` are far more aggressive on large cones and are expected to close most of the gap on the ITER=128 case.
 
-The honest framing for Saurabh:
+The honest framing for the customer:
 
 - **yosys ranks ITER=K variants lower-LUT as K shrinks, but this is partly an ABC weakness on the unpipelined case.**
 - **Real Vivado-LUT savings from pipeline-granularity alone are typically < 10%.** The 30–50% scaling here will compress sharply once Vivado runs the baseline.
-- A6 ITER=32 (customer's current operating point) is the right *anchor* for any future improvement claim, because that's the row Saurabh is measuring everything against.
+- A6 ITER=32 (customer's current operating point) is the right *anchor* for any future improvement claim, because that's the row the customer is measuring everything against.
 
 ---
 
@@ -224,7 +224,7 @@ A2 packed roughly 70% of the logic into LUT6 (vs baseline's all-LUT3), because t
 | 64 | 6,153 | Wide muxes → ABC maps onto F7/F8/F9 |
 | 128 (A2 comb) | 5,842 | Full bit-parallel matrix |
 
-KU3P has ~12,480 CLBs, each with 1 F7 / 1 F8 / 1 F9. **Per-instance** A2b's MUXFx counts fit comfortably. **At 8 instances** (Saurabh's case), 5 842 × 8 ≈ 47 k MUXFx is real CLB-mux pressure and will need a Vivado P&R run to verify packing.
+KU3P has ~12,480 CLBs, each with 1 F7 / 1 F8 / 1 F9. **Per-instance** A2b's MUXFx counts fit comfortably. **At 8 instances** (the customer's deployment), 5 842 × 8 ≈ 47 k MUXFx is real CLB-mux pressure and will need a Vivado P&R run to verify packing.
 
 ### Interpretation
 
@@ -234,11 +234,11 @@ This is the objective-aware selection story made concrete.
 - Under **`min_lc_pass_timing` with the customer's 5–6 cycle latency budget**, the deployment candidate is **A6 ITER=32 (chained)** at 11,468 LUT / 2,136 MUXFx / 4 cycles. A2b at matched latency (K=32, 5 cycles) is strictly worse on both LUT and MUXFx.
 - A2b is a useful **negative result**: once you pipeline the bit-parallel matrix, the cross-cone common-subexpression sharing disappears. Each stage's ABC scope is no larger than what the chained A6 already exposes for free, and the chained form happens to be slightly more LUT-efficient because it has fewer wide-mux fanouts.
 
-The point is not that `A6 ITER=32` is a secret variant. Saurabh is already running it. The point is Newton tried the competing variants (A1, A2, A2b at K ∈ {64, 32, 16}), rejected the misleading ones with reasons, selected the objective-appropriate variant, and recorded **why** each candidate failed or won.
+The point is not that `A6 ITER=32` is a secret variant. The customer is already running it. The point is Newton tried the competing variants (A1, A2, A2b at K ∈ {64, 32, 16}), rejected the misleading ones with reasons, selected the objective-appropriate variant, and recorded **why** each candidate failed or won.
 
 ---
 
-## Summary scorecard for Saurabh
+## Summary scorecard for the customer
 
 Customer pain ranking applied: LUT > congestion > latency > Fmax. Composite-score weights: `w_lut = 1.5, w_cong = 0.9, w_latency = 1.2, w_fmax = 0.7` (`w_fmax` is currently a structural placeholder because yosys produces no Fmax data; see Limitations).
 
@@ -333,9 +333,9 @@ ghash-yosys-qor-report/
     └── 04_a2b_pipelined_bit_parallel.md       # A2b K ∈ {64, 32, 16}, negative result
 ```
 
-The RTL and the meta-harness live in private repos:
+The RTL and the autoresearch experiment harness live in private repos:
 
 - `haran2001/ghash-multiplier` — cleaned baseline RTL + Python golden + plans / context.
-- `haran2001/meta-harness-ghash-fpga` — fork of `stanford-iris-lab/meta-harness`, two-track loop (RTL variant sweep + Vivado-strategy sweep), per-run JSONL evolution summary, frontier JSON.
+- `haran2001/ghash-fpga-autoresearch-harness` — two-track autoresearch loop (RTL variant sweep + Vivado-strategy sweep), per-run JSONL evolution summary, frontier JSON.
 
 This report is the public, customer-facing summary; the implementation repos remain private.
