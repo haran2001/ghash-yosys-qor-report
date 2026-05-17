@@ -1,6 +1,6 @@
 # GHASH GF(2^128) — Simplified Report
 
-A condensed version of [`README.md`](README.md). One page, three sections: problem, solution, limitations.
+A condensed version of [`README.md`](README.md). One page, three sections: problem, solution, limitations. For the executive-summary single page (final RTL + next steps only), see [`RECOMMENDATION.md`](RECOMMENDATION.md).
 
 ---
 

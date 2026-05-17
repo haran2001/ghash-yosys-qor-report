@@ -1,5 +1,9 @@
 # GHASH GF(2^128) Multiplier — Newton-Driven Open-Source QoR Study on `xcku3p-ffvb676-2-e`
 
+**Looking for the answer in one page?** See [`RECOMMENDATION.md`](RECOMMENDATION.md) — final RTL, optimisations applied, ordered next steps. For the condensed report with the assumption table see [`SUMMARY.md`](SUMMARY.md).
+
+---
+
 A closed-loop RTL-variant exploration of a pipelined GHASH / GF(2^128) multiplier, driven end-to-end by Newton — a self-learning agent for physical-design exploration — over the open-source flow (Yosys `synth_xilinx -family xcup`) before committing Vivado licence time. Newton proposes legal same-contract RTL variants, runs them through a fixed testbench gate and Tier-A synth, parses QoR, classifies the pressure point, and records *why* each candidate was accepted, rejected, or escalated.
 
 The goal is to rank legal same-contract RTL candidates by yosys-reported LUT / MUXFx / FF, surface the ones worth a full Vivado P&R pass, and capture the negative results in a reasoning trace so the next experiment doesn't relitigate them.
