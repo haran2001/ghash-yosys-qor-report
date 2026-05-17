@@ -1,6 +1,8 @@
-# GHASH GF(2^128) Multiplier — Open-Source QoR Study on `xcku3p-ffvb676-2-e`
+# GHASH GF(2^128) Multiplier — Newton-Driven Open-Source QoR Study on `xcku3p-ffvb676-2-e`
 
-A closed-loop RTL-variant exploration of a pipelined GHASH / GF(2^128) multiplier, run end-to-end on the open-source flow (Yosys `synth_xilinx -family xcup`) before committing Vivado licence time. The goal is to rank legal same-contract RTL candidates by yosys-reported LUT / MUXFx / FF, surface the ones worth a full Vivado P&R pass, and capture the negative results so the next experiment doesn't relitigate them.
+A closed-loop RTL-variant exploration of a pipelined GHASH / GF(2^128) multiplier, driven end-to-end by Newton — a self-learning agent for physical-design exploration — over the open-source flow (Yosys `synth_xilinx -family xcup`) before committing Vivado licence time. Newton proposes legal same-contract RTL variants, runs them through a fixed testbench gate and Tier-A synth, parses QoR, classifies the pressure point, and records *why* each candidate was accepted, rejected, or escalated.
+
+The goal is to rank legal same-contract RTL candidates by yosys-reported LUT / MUXFx / FF, surface the ones worth a full Vivado P&R pass, and capture the negative results in a reasoning trace so the next experiment doesn't relitigate them.
 
 This is a Yosys-only study. **No Vivado place-and-route has been run.** Every number is calibrated against a single anchor measurement from the customer's Vivado run. Absolute Vivado LUT counts must come from a Vivado pass on `xcku3p`; this report ranks variants, it does not size them.
 
@@ -52,7 +54,7 @@ The point of using yosys is not that yosys is the production flow. Vivado on Lin
 
 **What was not varied.** The TB. The functional contract. The byte ordering. The part. Any Vivado strategy (Track 2 hasn't run yet).
 
-**How variants are evaluated.** Each candidate goes through: (1) Verilator lint, (2) Python-golden bit-exact verification over 500–5 000 random vectors, (3) Yosys `synth_xilinx -family xcup -flatten`, (4) yosys-LC + MUXFx + FF parsing, (5) source-of-improvement tag, (6) frontier update.
+**How variants are evaluated.** Newton runs each candidate through: (1) Verilator lint, (2) Python-golden bit-exact verification over 500–5 000 random vectors, (3) Yosys `synth_xilinx -family xcup -flatten`, (4) yosys-LC + MUXFx + FF parsing, (5) source-of-improvement tag, (6) frontier update. The output is not just a synth log — it's a reasoning trace recording the observed result, the hypothesis, the command, and the selection rationale.
 
 **Calibration to Vivado.** One anchor point from the customer's Vivado run:
 
@@ -111,7 +113,7 @@ The Newton-relevant implementation choice here is the pipeline-granularity axis:
 | Latency | 1 cycle |
 | Inferred Vivado CLB-LUT (÷2.05) | ~8,180 |
 
-### Tried strategies
+### Newton strategies tried
 
 | Step | Strategy | `ITER_PER_STAGE` | Hypothesis | Observation | Decision |
 |---:|---|---:|---|---|---|
@@ -183,7 +185,7 @@ The Newton-relevant choice here is algorithmic: trade the chained `Z`-accumulato
 
 A2 was checked bit-exact against the existing TB Python golden over **5 000 random vectors** — zero mismatches. A2b at K ∈ {2, 4, 8, 16} was checked against the iterative golden over **500 random vectors × 4 K values = 2 000 total** — zero mismatches. The polynomial-degree-to-flat-bit mapping (`deg_to_flatbit(d) = 8·(d/8) + (7 − d%8)`) was reverse-engineered from the original TB by tracing single-bit inputs through `_xtime_right` and is recorded in the supporting skill.
 
-### Tried strategies
+### Newton strategies tried
 
 | Step | Strategy | Hypothesis | Observation | Decision |
 |---:|---|---|---|---|
@@ -232,7 +234,7 @@ This is the objective-aware selection story made concrete.
 - Under **`min_lc_pass_timing` with the customer's 5–6 cycle latency budget**, the deployment candidate is **A6 ITER=32 (chained)** at 11,468 LUT / 2,136 MUXFx / 4 cycles. A2b at matched latency (K=32, 5 cycles) is strictly worse on both LUT and MUXFx.
 - A2b is a useful **negative result**: once you pipeline the bit-parallel matrix, the cross-cone common-subexpression sharing disappears. Each stage's ABC scope is no larger than what the chained A6 already exposes for free, and the chained form happens to be slightly more LUT-efficient because it has fewer wide-mux fanouts.
 
-The point is not that `A6 ITER=32` is a secret variant. Saurabh is already running it. The point is the meta-harness tried the competing variants (A1, A2, A2b at K ∈ {64, 32, 16}), rejected the misleading ones with reasons, selected the objective-appropriate variant, and recorded **why** each candidate failed or won.
+The point is not that `A6 ITER=32` is a secret variant. Saurabh is already running it. The point is Newton tried the competing variants (A1, A2, A2b at K ∈ {64, 32, 16}), rejected the misleading ones with reasons, selected the objective-appropriate variant, and recorded **why** each candidate failed or won.
 
 ---
 
