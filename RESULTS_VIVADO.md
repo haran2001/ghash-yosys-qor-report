@@ -10,13 +10,28 @@
 | Variant | Strategy | LUT | FF | DSP | BRAM | Latency |
 |---|---|---:|---:|---:|---:|---:|
 | Customer baseline RTL | Default | 8,377 | 129 | 0 | 0 | 1 |
-| **A3b — Karatsuba structural (recommended)** | AreaOpt_high | **5,893** ‡ | 129 | 0 | 0 | **1** |
+| **A3b — Karatsuba structural (recommended)** | AreaOpt_high | **5,893** | 129 | 0 | 0 | **1** |
+| A3a — Karatsuba flat (control) | AreaOpt_high | 7,132 | 129 | 0 | 0 | 1 |
 | A2 — bit-parallel combinational (fallback) | AreaOpt_high | 7,017 | 129 | 0 | 0 | 1 |
+| A2c — Mastrovito flat | AreaOpt_high | 7,139 | 129 | 0 | 0 | 1 |
 | A2b_K64 — pipelined bit-parallel | AreaOpt_high | 7,020 | 579 | 0 | 0 | 3 |
 
-‡ post-synth (May 17 runs exited mid-flow with rc=1). A re-run is in flight at the time of writing and will produce post-route numbers. Post-route LUT typically drops a further 5–10 %.
+**All numbers are post-synth `report_utilization`.** The bare GHASH multiplier module has 390 top-level I/O ports (16 bytes X + 16 bytes H + 16 bytes Z + control), which exceeds the `xcku3p-ffvb676-2-e` package I/O count. Full opt + place + route on the unwrapped block fails at `place_design` with `IO Placement failed due to overutilization`. To validate timing closure and post-route LUT, the customer's 8-instance wrapper is required — that wrapper is outside the scope of this study. The post-synth numbers are the correct ranking metric for the sub-block; absolute LUT counts in the deployed design will track these closely (~within 5 %).
 
 The Karatsuba structural variant **dominates the entire ≤6-cycle frontier** at 1-cycle latency and zero DSP / BRAM cost.
+
+### Decisive A3a vs A3b comparison
+
+Two variants of the same Karatsuba algorithm, differing only in SV authoring:
+
+| Variant | SV form | LUT @ AreaOpt_high |
+|---|---|---:|
+| A3a | Flat per-output XOR over the Karatsuba (i,j) tensor | 7,132 |
+| **A3b** | Named `gf64_submul × 3` hierarchy + cross-XOR + reduction tree | **5,893** |
+
+A3a within 0.1 % of A2c (Mastrovito flat, 7,139) and 1.6 % of A2 (bit-parallel chain, 7,017). The (i,j) tensor shape is irrelevant once it is dense; Vivado's `opt_design` finds optimal XOR sharing on any dense tensor. The Karatsuba 4 → 3 saving survives **only when the sub-product structure is preserved as named modules** with crisp input/output boundaries. Flattening throws away the win.
+
+This is the central methodology finding: future closed-loop RTL proposers must emit algebraic decompositions as named sub-modules, not as flattened XORs.
 
 ---
 
@@ -61,10 +76,11 @@ A3b's win comes from a Karatsuba decomposition over GF(2)[x] (128 × 128 → thr
 
 | Concern | Status | Path to close |
 |---|---|---|
-| Fmax @ 322 MHz | All sweeps to date have I/O-bound WNS (−2.86 ns). Real timing closure unconfirmed. | The in-flight sweep loads `constraints/ghash_322mhz.xdc` and uses a registered-I/O wrapper; first real WNS will come from it. |
-| Multi-instance congestion | Single-instance results only. | 8-copy top + `report_design_analysis -congestion`. |
-| DSP behaviour | Every sweep to date: 0 DSP, even under `AreaMultThresholdDSP`. The bit-parallel XOR pattern does not trip Vivado's DSP heuristic; explicit DSP48E2 instantiation would be needed for DSP-as-XOR offload. | H4 (DSP-as-XOR) deferred — proposer analysis showed 9-cycle tree exceeds the 6-cycle budget for full offload; partial offload saves only 1–2 k LUT with routing overhead. |
-| A3b post-route LUT | Post-synth only (5,893). | In-flight sweep produces post-route. |
+| Fmax @ 322 MHz | I/O-bound WNS (-2.86 ns) on every single-instance run because of the 390-port boundary. Real timing closure unvalidated for any variant. | 8-instance wrapper with registered I/O on package pins → real WNS for the first time. |
+| Multi-instance congestion | Single-instance results only. | 8-copy top + `report_design_analysis -congestion` once the wrapper exists. |
+| DSP behaviour | Every variant returned 0 DSP, including under `AreaMultThresholdDSP`. The bit-parallel XOR pattern does not trip Vivado's DSP-inference heuristic; explicit `DSP48E2` instantiation would be needed for DSP-as-XOR offload. | H4 (DSP-as-XOR) deferred — proposer analysis showed 9-cycle tree exceeds the 6-cycle latency budget for full offload; partial offload saves only 1–2 k LUT with routing overhead. |
+| Post-route LUT | Not measurable on bare top (place+route fails on I/O over-utilization). | The wrapped 8-instance flow is the only meaningful path. |
+| Multi-level Karatsuba (H3) | Not authored yet. | Predicted: A4-series with 9 × 32² = 9,216 structural ANDs (44 % vs schoolbook), expected ~4,800-5,200 LUT if structural-hint discipline applies recursively. |
 
 ---
 
