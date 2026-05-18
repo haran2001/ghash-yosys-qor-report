@@ -1,5 +1,7 @@
 # GHASH GF(2^128) Multiplier — Newton-Driven Open-Source QoR Study on `xcku3p-ffvb676-2-e`
 
+> **⚡ 2026-05-18 update:** Vivado-validated results now supersede the yosys-only ranking in this README. Final recommendation: **A3b (Karatsuba structural) + AreaOptimized_high → 5,893 LUT / 1 cyc / 0 DSP / 0 BRAM** (−29.6 % vs baseline). See **[`RESULTS_VIVADO.md`](RESULTS_VIVADO.md)** for the consolidated table, source-of-improvement attribution, and chip-wide projection. The yosys methodology below remains the authoritative record of the Tier-A reasoning that motivated the Vivado sweep.
+
 **Looking for the answer in one page?** See [`RECOMMENDATION.md`](RECOMMENDATION.md) — final RTL, optimisations applied, ordered next steps. For the condensed report with the assumption table see [`SUMMARY.md`](SUMMARY.md).
 
 ---
